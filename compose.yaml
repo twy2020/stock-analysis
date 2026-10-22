@@ -1,0 +1,89 @@
+name: stock-analysis
+
+services:
+  data-engine:
+    build: ./stock-data-engine
+    restart: unless-stopped
+    environment:
+      MARKET_API_URL: ${MARKET_API_URL:-http://192.168.3.5:8765/api/db}
+      MARKET_API_TOKEN_FILE: ${MARKET_API_TOKEN_FILE:-}
+      STOCK_ENGINE_TOKEN_FILE: /run/stock/engine.token
+      STOCK_ALLOW_SQL: ${STOCK_ALLOW_SQL:-true}
+    volumes:
+      - ./.stock-private:/run/stock:ro
+      - stock-engine-data:/data
+    networks: [stock]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18310/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  core:
+    build: ./agent-core
+    restart: unless-stopped
+    volumes:
+      - ./.stock-private:/run/stock
+      - stock-core-data:/data
+    ports:
+      - "127.0.0.1:${STOCK_CORE_PORT:-18210}:18210"
+    networks: [stock]
+    depends_on:
+      data-engine: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import pathlib, urllib.request; token=pathlib.Path('/run/stock/saas.token').read_text().strip(); urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:18210/health', headers={'Authorization':'Bearer '+token}), timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./rag-chat-saas/backend
+      args:
+        STOCK_WEB: "1"
+    restart: unless-stopped
+    env_file:
+      - ./.stock-private/stock.env
+    environment:
+      DATABASE_PATH: /data/stock-chat.db
+      AGENT_BACKEND: core
+      AGENT_CORE_URL: http://core:18210
+      AGENT_CORE_TOKEN_FILE: /run/stock/saas.token
+      AGENT_CORE_MODEL_PROFILE: ""
+      STOCK_ENGINE_URL: http://data-engine:18310
+      STOCK_ENGINE_TOKEN_FILE: /run/stock/engine.token
+      RAG_ENABLED: ${RAG_ENABLED:-false}
+    volumes:
+      - ./.stock-private:/run/stock:ro
+      - stock-chat-data:/data
+    networks: [stock]
+    depends_on:
+      core: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  frontend:
+    build: ./rag-chat-saas/frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${STOCK_APP_PORT:-18110}:80"
+    networks: [stock]
+    depends_on:
+      backend: {condition: service_healthy}
+
+networks:
+  stock:
+    name: stock-analysis-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${STOCK_NETWORK_SUBNET:-10.252.251.0/24}
+
+volumes:
+  stock-chat-data: {name: stock-analysis-chat-data}
+  stock-core-data: {name: stock-analysis-core-data}
+  stock-engine-data: {name: stock-analysis-engine-data}

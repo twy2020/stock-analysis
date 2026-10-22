@@ -1,0 +1,4 @@
+mcp==2.3.0
+dhole-mcp==16.2
+patchright>=1.50,<2
+browserforge>=1.2,<2

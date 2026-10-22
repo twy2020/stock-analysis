@@ -1,0 +1,12 @@
+{
+  "id": "stock-analysis",
+  "name": "股票分析智能体",
+  "url": "http://127.0.0.1:18110",
+  "healthUrl": "http://127.0.0.1:18110/api/v1/health",
+  "projects": ["stock-analysis"],
+  "containers": [],
+  "tags": ["股票分析", "AI", "数据引擎"],
+  "description": "Docker：前端、SaaS 后端、Agent Core、数据引擎四个容器。市场中继为单独管理的依赖，请先启动同组中继；Core 管理入口 http://127.0.0.1:18210/admin。",
+  "favorite": true,
+  "color": "blue"
+}

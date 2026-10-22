@@ -1,0 +1,4 @@
+interface:
+  display_name: "Quant Lab 股票分析"
+  short_description: "用本地行情库做 A 股选股、买卖回测与事件后收益统计"
+  default_prompt: "用 $quantlab-stock-analysis 帮我把这个想法写成买卖条件，再回测并统计它的后续表现。"

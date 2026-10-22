@@ -1,0 +1,75 @@
+import { chromium } from '@playwright/test'
+import assert from 'node:assert/strict'
+const browser=await chromium.launch({channel:'msedge',headless:true})
+const base=process.env.CORE_PREVIEW_URL||'http://127.0.0.1:18211'
+try{
+  for(const width of [1440,390]){
+    const page=await browser.newPage({viewport:{width,height:1000}}),errors=[]
+    page.on('pageerror',error=>errors.push(error.message))
+    page.on('console',message=>{if(message.type()==='error')errors.push(message.text())})
+    await page.goto(base+'/admin#providers')
+    await page.getByLabel('密码',{exact:true}).fill(width===1440?'admin123':'preview-admin-password')
+    await page.getByRole('button',{name:'登录',exact:true}).click()
+    if(width===1440){
+      await page.getByLabel('当前密码',{exact:true}).fill('admin123')
+      await page.getByLabel('新密码',{exact:true}).fill('preview-admin-password')
+      await page.getByLabel('确认新密码',{exact:true}).fill('preview-admin-password')
+      await page.getByRole('button',{name:'保存密码',exact:true}).click()
+    }
+    const tree=page.getByRole('treegrid')
+    await tree.waitFor()
+    assert.ok(await tree.getByRole('button',{name:'DeepSeek Flash',exact:false}).count())
+    await page.getByRole('button',{name:'收起DeepSeek',exact:true}).click()
+    assert.equal(await tree.locator('[data-provider-node="models:flash"]').count(),0)
+    await page.getByRole('button',{name:'展开DeepSeek',exact:true}).click()
+    await page.getByLabel('搜索供应商、账号、API Key 或模型').fill('deepseek-flash')
+    assert.ok(await tree.locator('[data-provider-node="models:flash"]').count())
+    assert.equal(await tree.locator('[data-provider-node="providers:openai"]').count(),0)
+    await page.getByLabel('搜索供应商、账号、API Key 或模型').fill('')
+    for(const theme of ['light','dark']){
+      await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme)
+      await page.screenshot({path:`F:/my_projects/stock_analizer/.stock-private/core-tree-${width}-${theme}.png`})
+    }
+    await page.getByRole('button',{name:'新增供应商',exact:true}).click()
+    const drawer=page.getByRole('dialog')
+    await drawer.getByLabel('供应商模板',{exact:true}).selectOption('deepseek')
+    const id='ui-'+width+'-'+Date.now()
+    await drawer.getByLabel('ID',{exact:true}).fill(id)
+    await drawer.getByLabel('名称',{exact:true}).fill('UI Provider '+width)
+    const secret=drawer.getByLabel('API Key',{exact:true})
+    await secret.fill('fixture-'+width)
+    assert.equal(await secret.getAttribute('type'),'password')
+    await drawer.getByRole('button',{name:'显示输入内容',exact:true}).click()
+    assert.equal(await secret.getAttribute('type'),'text')
+    await drawer.getByRole('button',{name:'隐藏输入内容',exact:true}).click()
+    for(const theme of ['light','dark']){
+      await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme)
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
+      const rect=await drawer.boundingBox();assert.ok(rect.x>=0&&rect.x+rect.width<=width+1)
+      await page.screenshot({path:`F:/my_projects/stock_analizer/.stock-private/core-drawer-${width}-${theme}.png`})
+    }
+    const responsePromise=page.waitForResponse(response=>response.url().endsWith('/admin/api/connections')&&response.request().method()==='POST')
+    await drawer.getByRole('button',{name:'创建供应商',exact:true}).click()
+    const response=await responsePromise,registry=await response.json()
+    assert.equal(response.status(),200,JSON.stringify(registry))
+    assert.ok(registry.providers.some(p=>p.id===id))
+    const account=registry.providerAccounts.find(a=>a.providerId===id)
+    assert.ok(account)
+    assert.ok(registry.providerKeys.find(k=>k.accountId===account.id)?.credentialConfigured)
+    assert.ok(!JSON.stringify(registry).includes('fixture-'+width))
+    await drawer.getByLabel('API Key',{exact:true}).waitFor()
+    assert.equal(await drawer.getByLabel('API Key',{exact:true}).inputValue(),'')
+    await drawer.getByRole('button',{name:'关闭详情',exact:true}).click()
+    await tree.locator('[data-provider-node="models:legacy"] .tree-label').click()
+    await drawer.getByLabel('Base URL',{exact:true}).fill('https://new.example/v1')
+    await drawer.getByLabel('API Key',{exact:true}).fill('replacement-fixture')
+    const savePromise=page.waitForResponse(response=>response.url().endsWith('/admin/api/connections')&&response.request().method()==='POST')
+    await drawer.getByRole('button',{name:'保存更改',exact:true}).click()
+    assert.equal((await savePromise).status(),200)
+    await drawer.getByLabel('Base URL',{exact:true}).waitFor()
+    await drawer.getByRole('button',{name:'关闭详情',exact:true}).click()
+    assert.deepEqual(errors,[])
+    console.log(JSON.stringify({width,tree:true,search:true,drawer:true,providerAndKeySaved:true,legacyCredentialSaved:true,themes:true}))
+    await page.close()
+  }
+}finally{await browser.close()}

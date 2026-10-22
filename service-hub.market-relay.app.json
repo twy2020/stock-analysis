@@ -1,0 +1,22 @@
+{
+  "id": "stock-analysis-market-relay",
+  "name": "股票分析 · 市场中继",
+  "url": "",
+  "healthUrl": "http://127.0.0.1:18766/health",
+  "projects": [],
+  "containers": [],
+  "tags": ["股票分析", "数据引擎", "原生依赖"],
+  "description": "前台 Python 只读市场中继，端口 18766；就绪检查包含远端市场接口。无独立网页。先启动本依赖再启动股票分析；停止时先停止股票分析，再停止中继。",
+  "favorite": true,
+  "color": "blue",
+  "native": {
+    "cwd": "F:\\my_projects\\stock_analizer",
+    "command": [
+      "F:\\my_projects\\stock_analizer\\stock-data-engine\\.venv\\Scripts\\python.exe",
+      "-u",
+      "F:\\my_projects\\stock_analizer\\scripts\\market-relay.py",
+      "--port",
+      "18766"
+    ]
+  }
+}

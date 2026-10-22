@@ -1,0 +1,22 @@
+name: stock_predict_train
+channels:
+  - https://conda.anaconda.org/pytorch
+  - https://conda.anaconda.org/nvidia
+  - https://repo.anaconda.com/pkgs/main
+dependencies:
+  - python=3.11
+  - pip
+  - pytorch=2.5.1
+  - torchvision=0.20.1
+  - torchaudio=2.5.1
+  - pytorch-cuda=12.4
+  - pip:
+      - pandas
+      - scipy
+      - scikit-learn
+      - tqdm
+      - matplotlib
+      - seaborn
+      - jupyterlab
+      - ipykernel
+      - openpyxl

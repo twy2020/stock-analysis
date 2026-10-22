@@ -1,0 +1,4 @@
+export type Ticket = { id:string; ticketNumber:string; username:string; comment:string; conversationTitle:string; status:string; createdAt:string; updatedAt:string; imageCount:number; unread:boolean; latestReplyId:number; latestPreview:string }
+export type TicketDetail = Ticket & { images:Array<{id:string;name:string;url:string}>; replies:Array<{id:number;username:string;role:string;kind:string;body:string;createdAt:string}>; snapshot:{messages:Array<{role:string;content:string;model?:string}>;draft?:string;error?:string;knowledgeBase?:string;truncated?:boolean} }
+export const statusLabels:Record<string,string>={NEW:'待处理',REVIEWING:'处理中',RESOLVED:'已关闭'}
+export function date(value:string){return value?new Date(value.endsWith('Z')||/[+-]\d\d:\d\d$/.test(value)?value:`${value}Z`).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}
